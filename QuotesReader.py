@@ -9,7 +9,7 @@ from CollectTicker import collect_ticker
 from Utils import milliseconds_to_time
 
 WORK_DIR = os.path.dirname(__file__)
-DATA_DIR = '/Users/chenzhao/Data/taq data'
+DATA_DIR = os.path.join(WORK_DIR, 'data')
 QUOTE_DIR = os.path.join(DATA_DIR, 'quotes')
 ADJ_QUOTE_DIR = os.path.join(WORK_DIR, 'data', 'quote')
 
