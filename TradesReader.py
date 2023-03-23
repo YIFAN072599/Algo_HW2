@@ -80,45 +80,8 @@ class TAQTradesReader(object):
         df = pd.DataFrame({
             'Date': [milliseconds_to_time(t) for t in self._ts],
             'Price': self._p,
-            'Size': self._s
+            'Volume': self._s
         })
         df['Date'] = date + df['Date']
-        df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d%H:%M:%S')
+        df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d%H:%M:%S.%f')
         return df
-
-
-class TradesReader(object):
-    def __init__(self, dirPath, adjPath):
-        self._adjPath = adjPath
-        self._dirPath = dirPath
-        # use collect_ticker() to get all tickers
-        # self._tickers = collect_ticker()
-        self._tickers = ['MS', 'A']
-        self._data = {}
-
-        for root, dirs, files in os.walk(self._dirPath):
-            for dir in dirs:
-                for subroot, subdirs, subfiles in os.walk(os.path.join(root, dir)):
-                    for subfile in subfiles:
-                        ticker = subfile.split('_trade')[0]
-                        if ticker not in self._tickers:
-                            continue
-                        filePathName = os.path.join(subroot, subfile)
-                        reader = TAQTradesReader(filePathName)
-                        df = reader.get_df(dir)
-                        self._data[ticker] = pd.concat([self._data.get(ticker, pd.DataFrame()), df], ignore_index=True)
-
-    def save_tickers(self):
-        if not os.path.exists(self._adjPath):
-            os.makedirs(self._adjPath)
-        for ticker, data in self._data.items():
-            path = os.path.join(self._adjPath, f"{ticker}.csv")
-            data.set_index('Date', drop=True, inplace=True)
-            data.sort_index(inplace=True)
-            data[['Adj_Price', 'Adj_Size']] = data[['Price', 'Size']]
-            data.to_csv(path)
-
-
-if __name__ == '__main__':
-    reader = TradesReader(TRADE_DIR, ADJ_TRADE_DIR)
-    reader.save_tickers()
