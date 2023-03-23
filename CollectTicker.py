@@ -9,6 +9,5 @@ def collect_ticker(path=sp_path):
     return df_Ticker
 
 
-
 if __name__ == '__main__':
     print(collect_ticker())

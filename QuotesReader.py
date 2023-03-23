@@ -93,7 +93,7 @@ class QuotesReader(object):
     def __init__(self, dirPath, adjPath):
         self._dirPath = dirPath
         # use collect_ticker() to get all tickers
-        #self._tickers = collect_ticker()
+        self._tickers = collect_ticker()
         self._tickers = ['MS', 'A']
         self._data = {}
         self._adjPath = adjPath
