@@ -7,7 +7,7 @@ import pandas as pd
 from Utils import milliseconds_to_time
 
 WORK_DIR = os.path.dirname(__file__)
-DATA_DIR = '/Users/chenzhao/Data/taq data'
+DATA_DIR = os.path.join(WORK_DIR, 'data')
 TRADE_DIR = os.path.join(DATA_DIR, 'trades')
 ADJ_TRADE_DIR = os.path.join(WORK_DIR, 'data', 'trade')
 
