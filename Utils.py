@@ -10,7 +10,8 @@ def milliseconds_to_time(milliseconds):
     remaining_hours = hours % 24
 
     # Format the time as a string with milliseconds
-    time_string = "{:02d}:{:02d}:{:02d}.{:03d}".format(remaining_hours, remaining_minutes, remaining_seconds, milliseconds % 1000)
+    time_string = "{:02d}:{:02d}:{:02d}.{:03d}".format(remaining_hours, remaining_minutes, remaining_seconds,
+                                                       milliseconds % 1000)
 
     # Return the formatted time string
     return time_string
