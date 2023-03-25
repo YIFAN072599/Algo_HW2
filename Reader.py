@@ -17,7 +17,7 @@ split_df = get_adjust_date(SP_PATH)
 
 if __name__ == '__main__':
     for root, dir, file in os.walk(QUOTE_DIR):
-        for date in dir[:1]:
+        for date in dir:
             for subroot, subdir, subfile in os.walk(os.path.join(root, date)):
                 for f in subfile:
                     ticker = f.split('_quotes')[0]
