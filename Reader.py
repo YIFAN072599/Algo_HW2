@@ -97,5 +97,11 @@ if __name__ == '__main__':
     market_imbalance_df = pd.DataFrame.from_dict(market_imbalance, index=date_list)
     total_volume_df = pd.DataFrame.from_dict(total_volume, index=date_list)
     return_std_df = pd.DataFrame.from_dict(return_std, index=date_list)
-
+    vwap400_df.to_csv("vwap400.csv")
+    vwap330_df.to_csv("vwap330.csv")
+    terminal_price_df.to_csv("terminal_price.csv")
+    arrival_price_df.to_csv("arrival_price.csv")
+    market_imbalance_df.to_csv("market_imbalance.csv")
+    total_volume_df.to_csv("total_volume.csv")
+    return_std_df.to_csv("return_std.csv")
     print(vwap330_df)
