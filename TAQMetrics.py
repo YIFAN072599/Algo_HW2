@@ -31,17 +31,34 @@ class TAQMetrics:
     def calculate_imbalance(self):
         self.resampled_df = self.df.between_time("9:30", "15:30")
         self.resampled_df['Previous_price'] = self.resampled_df['Price'].shift(1)
-        self.resampled_df['Trade_type'] = np.where(self.df['Price'] > self.df['Previous_price'], 'buy', 'sell')
-        buy_volume = self.df.loc[self.df['Trade_type'] == 'buy', 'Volume']
-        sell_volume = self.df.loc[self.df['Trade_type'] == 'sell', 'Volume']
-        imbalance = buy_volume - sell_volume
+        self.resampled_df.dropna(inplace=True)
+        self.resampled_df['Trade_type'] = np.where(self.resampled_df['Price'] > self.resampled_df['Previous_price'],
+                                                   'buy', 'sell')
+
+        # Initialize buy and sell volume sums
+        buy_volume_sum = 0
+        sell_volume_sum = 0
+
+        # Iterate through the DataFrame and accumulate buy and sell volumes
+        for index, row in self.resampled_df.iterrows():
+            if row['Trade_type'] == 'buy':
+                buy_volume_sum += row['Volume']
+            else:
+                sell_volume_sum += row['Volume']
+
+        # Calculate imbalance
+        imbalance = buy_volume_sum - sell_volume_sum
+
         return imbalance
 
-
     def calculate_mid_quote_returns_std(self):
-        resample_df = self.resampled_df[["Date", "midQuote"]]
+        resample_df = self.df["midQuote"]
+        resampled_first = self.df.resample('2T').agg(
+         {'Ticker': 'first', 'midQuote': 'mean', 'Price': 'mean', 'Volume': 'sum'})
+        resampled_last = self.df.resample('2T').agg(
+         {'Ticker': 'last', 'midQuote': 'mean', 'Price': 'mean', 'Volume': 'sum'})
         freq = "2t"
-        return_df = resample_df(freq, closed="left", label="right", on="Datetime")
+        return_df = resample_df(freq, closed="left", label="right", on="Date")
         first = return_df.agg("first")
         last = return_df.agg("last")
         mid_return_df = last[["midQuote"]] / first[["midQuote"]] - 1
