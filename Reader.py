@@ -1,7 +1,7 @@
 import os
 
 import pandas as pd
-
+pd.set_option('display.max_columns', None)
 from QuotesReader import TAQQuotesReader
 from TAQAdjust import TAQAdjust, get_factor, get_adjust_date
 from TradesReader import TAQTradesReader
@@ -15,6 +15,28 @@ tickers = ['MS', 'AAPL', 'MSFT', 'AMZN', 'JPM']
 factor_df = get_factor(SP_PATH)
 split_df = get_adjust_date(SP_PATH)
 
+
+def calculate_volume_imbalance(self, resampled_df):
+    # Calculate the volume imbalance
+    vi = (resampled_df['volume'].iloc[0] - resampled_df['volume'].iloc[-1]) / resampled_df['volume'].sum()
+    return vi
+
+
+def calculate_std_2min_returns(self, resampled_df):
+    # Calculate the 2-minute returns
+    returns = np.log(resampled_df['price']) - np.log(resampled_df['price'].shift(1))
+
+    # Calculate the standard deviation of the 2-minute returns
+    std_returns = returns.std()
+
+    return std_returns
+
+
+def calculate_average_daily_volume(self, resampled_df):
+    # Calculate the average daily volume
+    avg_daily_volume = resampled_df['volume'].mean()
+
+    return avg_daily_volume
 if __name__ == '__main__':
     for root, dir, file in os.walk(QUOTE_DIR):
         for date in dir:
@@ -36,7 +58,7 @@ if __name__ == '__main__':
 
                     df['midQuote'] = (df['BidPrice'] + df['AskPrice']) / 2
                     df.set_index('Date', inplace=True)
-                    resampled_df = df.resample('2T').agg(
-                        {'Ticker': 'first', 'midQuote': 'mean', 'Price': 'mean', 'Volume': 'sum'})
+                    # resampled_df = df.resample('2T').agg(
+                    #     {'Ticker': 'first', 'midQuote': 'mean', 'Price': 'mean', 'Volume': 'sum'})
 
-                    print(resampled_df)
+
