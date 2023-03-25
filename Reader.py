@@ -3,14 +3,17 @@ import os
 import pandas as pd
 
 from QuotesReader import TAQQuotesReader
-from TAQAdjust import TAQAdjust
+from TAQAdjust import TAQAdjust, get_factor, get_adjust_date
 from TradesReader import TAQTradesReader
 
 WORK_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(WORK_DIR, 'data')
 QUOTE_DIR = os.path.join(DATA_DIR, 'quotes')
 TRADE_DIR = os.path.join(DATA_DIR, 'trades')
+SP_PATH = os.path.join(WORK_DIR, 'data', 's&p500.xlsx')
 tickers = ['MS', 'AAPL', 'MSFT', 'AMZN', 'JPM']
+factor_df = get_factor(SP_PATH)
+split_df = get_adjust_date(SP_PATH)
 
 if __name__ == '__main__':
     for root, dir, file in os.walk(QUOTE_DIR):
@@ -27,7 +30,7 @@ if __name__ == '__main__':
 
                     df = pd.merge(q_df, t_df, on='Date')
 
-                    adjust = TAQAdjust(df=df)
+                    adjust = TAQAdjust(df=df, factor_df=factor_df, split_df=split_df)
                     adjust.adjust()
                     df = adjust.get_df()
 

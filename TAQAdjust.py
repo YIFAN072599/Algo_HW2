@@ -49,12 +49,12 @@ def get_adjust_date(path=SP_PATH):
     return split_df
 
 
+
 class TAQAdjust:
-    def __init__(self, df, sp_path=SP_PATH):
+    def __init__(self, df, factor_df, split_df):
         self._df = df
-        self._sp_path = sp_path
-        self._factor_df = get_factor(sp_path)
-        self._split_df = get_adjust_date(sp_path)
+        self._factor_df = factor_df
+        self._split_df = split_df
         self._date = df['Date']
         self._ticker = df['Ticker'].unique()[0]
 
@@ -73,8 +73,8 @@ class TAQAdjust:
             self._df.loc[idx, 'AskSize'] = self._df.loc[idx, 'AskSize'] * v_factor
             self._df.loc[idx, 'BidSize'] = self._df.loc[idx, 'BidSize'] * v_factor
 
-            self._df.loc[idx, 'Adj_Price'] = self._df.loc[idx, 'Price'] * p_factor
-            self._df.loc[idx, 'Adj_Size'] = self._df.loc[idx, 'Size'] * v_factor
+            self._df.loc[idx, 'Price'] = self._df.loc[idx, 'Price'] * p_factor
+            self._df.loc[idx, 'Volume'] = self._df.loc[idx, 'Volume'] * v_factor
 
     def get_df(self):
         return self._df
