@@ -52,18 +52,14 @@ class TAQMetrics:
         return imbalance
 
     def calculate_mid_quote_returns_std(self):
-        resample_df = self.df["midQuote"]
-        resampled_first = self.df.resample('2T').agg(
-         {'Ticker': 'first', 'midQuote': 'mean', 'Price': 'mean', 'Volume': 'sum'})
-        resampled_last = self.df.resample('2T').agg(
-         {'Ticker': 'last', 'midQuote': 'mean', 'Price': 'mean', 'Volume': 'sum'})
-        freq = "2t"
-        return_df = resample_df(freq, closed="left", label="right", on="Date")
-        first = return_df.agg("first")
-        last = return_df.agg("last")
-        mid_return_df = last[["midQuote"]] / first[["midQuote"]] - 1
-        mid_return_df.rename(columns={"midQuote": freq + "_ret"}, inplace=True)
-        return mid_return_df[freq + "_ret"].std() * np.sqrt(6.5 * 60 * 60 / 2)
+        # Resample the dataframe to 2-minute intervals and take the first and last mid-quote prices
+        resample_df = self.df.resample('2T').agg({'midQuote_first': 'first', 'midQuote_last': 'last'})
+
+        # Calculate the returns as the ratio of the last mid-quote price to the first mid-quote price, minus 1
+        resample_df['return'] = resample_df['midQuote_last'] / resample_df['midQuote_first'] - 1
+
+        # Calculate the standard deviation of the returns and scale it by the square root of the number of 2-minute intervals in a trading day
+        return resample_df['return'].std() * np.sqrt(6.5 * 60 * 60 / 2)
 
     def calculate_total_daily_volume(self):
         total_volume = self.df["Volume"].sum()
