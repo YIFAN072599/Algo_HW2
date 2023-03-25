@@ -46,7 +46,6 @@ def calculate_average_daily_volume(self, resampled_df):
 
 
 if __name__ == '__main__':
-    from tqdm import tqdm
     vwap400 = defaultdict(list)
     vwap330 = defaultdict(list)
     terminal_price = defaultdict(list)
@@ -55,7 +54,7 @@ if __name__ == '__main__':
     market_imbalance = defaultdict(list)
     total_volume = defaultdict(list)
     return_std = defaultdict(list)
-    for root, dir, file in tqdm(os.walk(QUOTE_DIR)):
+    for root, dir, file in os.walk(QUOTE_DIR):
         for date in dir:
             date_list.append(date)
             for subroot, subdir, subfile in os.walk(os.path.join(root, date)):

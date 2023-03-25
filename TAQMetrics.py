@@ -52,9 +52,11 @@ class TAQMetrics:
         return imbalance
 
     def calculate_mid_quote_returns_std(self):
-        # Resample the dataframe to 2-minute intervals and calculate returns
-        resample_df = self.df.resample('2T')['midQuote'].agg(['first', 'last'])
-        resample_df['return'] = resample_df['last'] / resample_df['first'] - 1
+        # Resample the dataframe to 2-minute intervals and take the first and last mid-quote prices
+        resample_df = self.df.resample('2T').agg({'midQuote_first': 'first', 'midQuote_last': 'last'})
+
+        # Calculate the returns as the ratio of the last mid-quote price to the first mid-quote price, minus 1
+        resample_df['return'] = resample_df['midQuote_last'] / resample_df['midQuote_first'] - 1
 
         # Calculate the standard deviation of the returns and scale it by the square root of the number of 2-minute intervals in a trading day
         return resample_df['return'].std() * np.sqrt(6.5 * 60 * 60 / 2)
