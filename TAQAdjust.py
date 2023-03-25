@@ -5,10 +5,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 
 WORK_DIR = os.path.dirname(__file__)
-ADJ_QUOTE_DIR = os.path.join(WORK_DIR, 'data', 'quote')
-ADJ_TRADE_DIR = os.path.join(WORK_DIR, 'data', 'trade')
 SP_PATH = os.path.join(WORK_DIR, 'data', 's&p500.xlsx')
-FIG_DIR = os.path.join(WORK_DIR, 'figure', 'adjust')
 
 
 def get_factor(path=SP_PATH):
@@ -53,74 +50,31 @@ def get_adjust_date(path=SP_PATH):
 
 
 class TAQAdjust:
-    def __init__(self, quote_path, trade_path, sp_path):
-        self._quote_path = quote_path
-        self._trade_path = trade_path
+    def __init__(self, df, sp_path=SP_PATH):
+        self._df = df
         self._sp_path = sp_path
         self._factor_df = get_factor(sp_path)
         self._split_df = get_adjust_date(sp_path)
-        workdir = os.listdir(quote_path)
-        if '.DS_Store' in workdir:
-            workdir.remove('.DS_Store')
-        self._ticker = [x[:-4] for x in workdir]
+        self._date = df['Date']
+        self._ticker = df['Ticker'].unique()[0]
 
     def adjust(self):
-        for ticker in self._split_df.index:
-            if ticker not in self._ticker:
-                continue
-            factor_df = self._factor_df[self._factor_df['Ticker'] == ticker].set_index('Date')
-            date = self._split_df.loc[ticker, 'splitting_date']
+        if self._ticker in self._split_df.index:
+            factor_df = self._factor_df[self._factor_df['Ticker'] == self._ticker].set_index('Date')
+            date = self._split_df.loc[self._ticker, 'splitting_date']
             prev_index = factor_df.index.get_loc(date) - 1
             p_factor = factor_df.loc[date, 'Cumulative Factor to Adjust Prices'] / factor_df.iloc[prev_index, 1]
             v_factor = factor_df.loc[date, 'Cumulative Factor to Adjust Shares/Vol'] / factor_df.iloc[prev_index, 2]
-            quote = pd.read_csv(os.path.join(self._quote_path, ticker + '.csv'), parse_dates=['Date'])
-            trade = pd.read_csv(os.path.join(self._trade_path, ticker + '.csv'), parse_dates=['Date'])
 
-            quote_idx = quote['Date'] < date
-            trade_idx = trade['Date'] < date
+            idx = self._date < date
 
-            quote.loc[quote_idx, 'Adj_AskPrice'] = quote.loc[quote_idx, 'AskPrice'] * p_factor
-            quote.loc[quote_idx, 'Adj_BidPrice'] = quote.loc[quote_idx, 'BidPrice'] * p_factor
-            quote.loc[quote_idx, 'Adj_AskSize'] = quote.loc[quote_idx, 'AskSize'] * v_factor
-            quote.loc[quote_idx, 'Adj_BidSize'] = quote.loc[quote_idx, 'BidSize'] * v_factor
+            self._df.loc[idx, 'AskPrice'] = self._df.loc[idx, 'AskPrice'] * p_factor
+            self._df.loc[idx, 'BidPrice'] = self._df.loc[idx, 'BidPrice'] * p_factor
+            self._df.loc[idx, 'AskSize'] = self._df.loc[idx, 'AskSize'] * v_factor
+            self._df.loc[idx, 'BidSize'] = self._df.loc[idx, 'BidSize'] * v_factor
 
-            trade.loc[trade_idx, 'Adj_Price'] = trade.loc[trade_idx, 'Price'] * p_factor
-            trade.loc[trade_idx, 'Adj_Size'] = trade.loc[trade_idx, 'Size'] * v_factor
+            self._df.loc[idx, 'Adj_Price'] = self._df.loc[idx, 'Price'] * p_factor
+            self._df.loc[idx, 'Adj_Size'] = self._df.loc[idx, 'Size'] * v_factor
 
-            quote['Mid_Price'] = (quote['Adj_AskPrice'] + quote['Adj_BidPrice']) / 2
-
-            quote.to_csv(os.path.join(self._quote_path, ticker + '.csv'), index=False)
-            trade.to_csv(os.path.join(self._trade_path, ticker + '.csv'), index=False)
-
-    def plot(self):
-        if not os.path.exists(FIG_DIR):
-            os.mkdir(FIG_DIR)
-        plt.figure(figsize=(16, 9))
-        for ticker in self._ticker:
-            quote = pd.read_csv(os.path.join(self._quote_path, ticker + '.csv'), parse_dates=['Date'])
-            plt.plot(quote['Date'], quote['Adj_AskPrice'], label=ticker + ' Adj_AskPrice')
-            plt.plot(quote['Date'], quote['Adj_BidPrice'], label=ticker + ' Adj_BidPrice')
-            plt.legend()
-            plt.title(f'{ticker} Quote Prices')
-            plt.xlabel('Date')
-            plt.ylabel('Price')
-            plt.savefig(os.path.join(FIG_DIR, f'{ticker}_quote_adj_prices.png'))
-            plt.clf()
-
-        # Plot trade's Adj_Price in a separate figure
-        plt.figure(figsize=(16, 9))
-        for ticker in self._ticker:
-            trade = pd.read_csv(os.path.join(self._trade_path, ticker + '.csv'), parse_dates=['Date'])
-            plt.plot(trade['Date'], trade['Adj_Price'], label=ticker + ' Adj_Price')
-            plt.legend()
-            plt.title(f'{ticker} Trade Prices')
-            plt.xlabel('Date')
-            plt.ylabel('Price')
-            plt.savefig(os.path.join(FIG_DIR, f'{ticker}_trade_adj_prices.png'))
-            plt.clf()
-
-
-if __name__ == '__main__':
-    adjust = TAQAdjust(ADJ_QUOTE_DIR, ADJ_TRADE_DIR, SP_PATH)
-    #adjust.adjust()
-    adjust.plot()
+    def get_df(self):
+        return self._df

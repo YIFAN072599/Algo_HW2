@@ -3,6 +3,7 @@ import os
 import pandas as pd
 
 from QuotesReader import TAQQuotesReader
+from TAQAdjust import TAQAdjust
 from TradesReader import TAQTradesReader
 
 WORK_DIR = os.path.dirname(__file__)
@@ -25,6 +26,11 @@ if __name__ == '__main__':
                     t_df = t_reader.get_df(date)
 
                     df = pd.merge(q_df, t_df, on='Date')
+
+                    adjust = TAQAdjust(df=df)
+                    adjust.adjust()
+                    df = adjust.get_df()
+
                     df['midQuote'] = (df['BidPrice'] + df['AskPrice']) / 2
                     df.set_index('Date', inplace=True)
                     resampled_df = df.resample('2T').agg(
