@@ -77,7 +77,6 @@ if __name__ == '__main__':
                     df['midQuote'] = (df['BidPrice'] + df['AskPrice']) / 2
                     df.set_index('Date', inplace=True)
 
-
                     model = TAQMetrics(df)
                     vwap400[ticker].append(model.calculate_vwap())
                     return_std[ticker].append(model.calculate_mid_quote_returns_std())
