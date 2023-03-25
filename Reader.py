@@ -1,6 +1,10 @@
 import os
+from collections import defaultdict
 
 import pandas as pd
+
+from TAQMetrics import TAQMetrics
+
 pd.set_option('display.max_columns', None)
 from QuotesReader import TAQQuotesReader
 from TAQAdjust import TAQAdjust, get_factor, get_adjust_date
@@ -37,9 +41,20 @@ def calculate_average_daily_volume(self, resampled_df):
     avg_daily_volume = resampled_df['volume'].mean()
 
     return avg_daily_volume
+
+
 if __name__ == '__main__':
+    vwap400 = defaultdict(list)
+    vwap330 = defaultdict(list)
+    terminal_price = defaultdict(list)
+    arrival_price = defaultdict(list)
+    date_list = []
+    market_imbalance = defaultdict(list)
+    total_volume = defaultdict(list)
+    return_std = defaultdict(list)
     for root, dir, file in os.walk(QUOTE_DIR):
         for date in dir:
+            date_list.append(date)
             for subroot, subdir, subfile in os.walk(os.path.join(root, date)):
                 for f in subfile:
                     ticker = f.split('_quotes')[0]
@@ -61,4 +76,22 @@ if __name__ == '__main__':
                     # resampled_df = df.resample('2T').agg(
                     #     {'Ticker': 'first', 'midQuote': 'mean', 'Price': 'mean', 'Volume': 'sum'})
 
+                    model = TAQMetrics(df)
 
+                    vwap400[ticker].append(model.calculate_vwap())
+                    vwap330[ticker].append(model.calculate_vwap_sub())
+                    terminal_price[ticker].append(model.get_terminal_price())
+                    arrival_price[ticker].append(model.get_arrival_price())
+                    market_imbalance[ticker].append(model.calculate_market_impact())
+                    total_volume[ticker].append(model.calculate_total_daily_volume())
+                    return_std[ticker].append(model.calculate_mid_quote_returns_std())
+
+    vwap400_df = pd.DataFrame.from_dict(vwap400, index=date)
+    vwap330_df = pd.DataFrame.from_dict(vwap330, index=date)
+    terminal_price_df = pd.DataFrame.from_dict(terminal_price, index=date)
+    arrival_price_df = pd.DataFrame.from_dict(arrival_price, index=date)
+    market_imbalance_df = pd.DataFrame.from_dict(market_imbalance, index=date)
+    total_volume_df = pd.DataFrame.from_dict(total_volume, index=date)
+    return_std_df = pd.DataFrame.from_dict(return_std, index=date)
+
+    print(vwap330_df)

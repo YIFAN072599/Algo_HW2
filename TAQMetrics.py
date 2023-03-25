@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 
-class MarketImpactModel:
+class TAQMetrics:
     def __init__(self, df):
         self.df = df
 
