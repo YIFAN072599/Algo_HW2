@@ -1,4 +1,5 @@
 import os
+
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
@@ -11,9 +12,11 @@ V = pd.read_csv(os.path.join(REGRESSION_DIR, 'total_volume.csv'), index_col=0)
 S = pd.read_csv(os.path.join(REGRESSION_DIR, 'return_std.csv'), index_col=0)
 H = pd.read_csv(os.path.join(REGRESSION_DIR, 'temporary_impact.csv'), index_col=0)
 
+
 # Define your nonlinear model function
 def model_function(x, eta, s, v, beta):
-    return eta * s * (x/(6/6.5)*v)**beta
+    return eta * s * (x / (6 / 6.5) * v) ** beta
+
 
 class NonLinearRegression():
     def __init__(self, X, V, S, H, model_function):
@@ -42,10 +45,12 @@ class NonLinearRegression():
 
             # Fit the nonlinear regression model
             p0 = [1.0, 1.0]  # Initial guess for the parameters
-            params, _ = curve_fit(lambda x, eta, beta: self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta), x_data, y_data, p0=p0)
+            params, _ = curve_fit(lambda x, eta, beta: self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta), x_data, y_data,
+                                  p0=p0)
 
             # Print the estimated parameters
             print(f"Date: {date}, eta: {params[0]}, beta: {params[1]}")
+
 
 # Create and run the NonLinearRegression
 nonlinear_regression = NonLinearRegression(X, V, S, H, model_function)
