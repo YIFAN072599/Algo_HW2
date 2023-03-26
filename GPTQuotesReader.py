@@ -56,22 +56,16 @@ class TAQQuotesReader(object):
             self._ap = np.asarray(struct.unpack_from((">%df" % self._header[1]), file_content[startI:endI]))
 
     def get_df(self, date, ticker):
-        ts = np.vectorize(milliseconds_to_time)(self._ts)
-        ts = ts.astype(date.dtype)
-        # Concatenate the arrays
-        combined = np.core.defchararray.add(date, ts)
-        dates = pd.to_datetime(combined, format='%Y%m%d%H:%M:%S.%f')
-        tickers = np.full_like(self._ts, ticker, dtype=object)
-
         df = pd.DataFrame({
-            'Date': dates,
-            'Ticker': tickers,
+            'Date': [milliseconds_to_time(t) for t in self._ts],
+            'Ticker': [ticker] * len(self._ts),
             'AskPrice': self._ap,
             'AskSize': self._as,
             'BidPrice': self._bp,
             'BidSize': self._bs
         })
-
+        df['Date'] = date + df['Date']
+        df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d%H:%M:%S.%f')
         return df
 
 

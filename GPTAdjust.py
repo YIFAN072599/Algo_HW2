@@ -9,6 +9,8 @@ SP_PATH = os.path.join(WORK_DIR, 'data', 's&p500.xlsx')
 def prepare_adjustment_data(path=SP_PATH):
     factor_df = pd.read_excel(path, usecols=["Names Date", "Trading Symbol", "Cumulative Factor to Adjust Prices",
                                              "Cumulative Factor to Adjust Shares/Vol"])
+    factor_df = factor_df.groupby(["Names Date", "Trading Symbol", "Cumulative Factor to Adjust Prices",
+                                   "Cumulative Factor to Adjust Shares/Vol"]).size().reset_index(name="Frequency")
     factor_df["Names Date"] = pd.to_datetime(factor_df["Names Date"], format='%Y%m%d')
     factor_df = factor_df.rename(columns={"Names Date": "Date", "Trading Symbol": "Ticker"})
 
@@ -35,6 +37,7 @@ def prepare_adjustment_data(path=SP_PATH):
 
 def adjust_taq_data(df, factor_df, split_df):
     df['Date'] = pd.to_datetime(df['Date'])
+    factor_df.dropna(inplace=True)
     merged_df = pd.merge_asof(df, factor_df, on='Date', by='Ticker', direction='backward')
 
     for ticker in split_df.index.unique():
@@ -53,3 +56,5 @@ factor_df, split_df = prepare_adjustment_data()
 
 # Use adjust_taq_data() with the prepared factor_df and split_df
 # adjusted_data = adjust_taq_data(raw_data, factor_df, split_df)
+if __name__ == '__main__':
+    print(factor_df)

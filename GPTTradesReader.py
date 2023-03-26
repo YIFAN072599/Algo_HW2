@@ -38,13 +38,11 @@ class TAQTradesReader(object):
             self._p = np.asarray(struct.unpack_from((">%df" % self._header[1]), file_content[startI:endI]))
 
     def get_df(self, date):
-        ts = np.vectorize(milliseconds_to_time)(self._ts)
-        dates = pd.to_datetime(date + ts, format='%Y%m%d%H:%M:%S.%f')
-
         df = pd.DataFrame({
-            'Date': dates,
+            'Date': [milliseconds_to_time(t) for t in self._ts],
             'Price': self._p,
             'Volume': self._s
         })
-
+        df['Date'] = date + df['Date']
+        df['Date'] = pd.to_datetime(df['Date'], format='%Y%m%d%H:%M:%S.%f')
         return df
