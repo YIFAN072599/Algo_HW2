@@ -31,7 +31,7 @@ class TAQAnalysis:
 
     def run(self):
         for root, dir, files in os.walk(self.quote_dir):
-            for date in dir:
+            for date in dir[:1]:
                 for subroot, subdir, subfiles in os.walk(os.path.join(root, date)):
                     for f in subfiles:
 
@@ -59,6 +59,7 @@ class TAQAnalysis:
                         self.results[ticker]['arrival_price'].append(metric.get_arrival_price())
                         self.results[ticker]['market_imbalance'].append(metric.calculate_imbalance())
                         self.results[ticker]['total_volume'].append(metric.calculate_total_daily_volume())
+                        self.results[ticker]['h'].append(metric.calculate_market_impact()[1])
 
     def save_results(self, file_prefix=''):
         for key, result in self.results.items():

@@ -57,7 +57,10 @@ class TAQQuotesReader(object):
 
     def get_df(self, date, ticker):
         ts = np.vectorize(milliseconds_to_time)(self._ts)
-        dates = pd.to_datetime(date + ts, format='%Y%m%d%H:%M:%S.%f')
+        ts = ts.astype(date.dtype)
+        # Concatenate the arrays
+        combined = np.core.defchararray.add(date, ts)
+        dates = pd.to_datetime(combined, format='%Y%m%d%H:%M:%S.%f')
         tickers = np.full_like(self._ts, ticker, dtype=object)
 
         df = pd.DataFrame({

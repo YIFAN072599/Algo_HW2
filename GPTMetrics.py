@@ -19,12 +19,12 @@ class TAQMetrics:
         vwap = resampled_df['tv'].sum() / resampled_df['Volume'].sum()
         return vwap
 
-    def calculate_market_impact(self, vwap):
+    def calculate_market_impact(self):
         """Calculate the market impact (g) and the temporary impact (h)."""
-        first_price = self.df.iloc[0]['Price']
-        last_price = self.df.iloc[-1]['Price']
-        g = last_price - first_price
-        h = vwap - first_price - g
+        first_price = self.get_arrival_price()
+        last_price = self.get_terminal_price()
+        g = (last_price - first_price)/2
+        h = self.calculate_vwap() - first_price - g
         return g, h
 
     def calculate_imbalance(self):
