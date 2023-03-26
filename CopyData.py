@@ -1,12 +1,13 @@
-import shutil
 import os
+import shutil
+
 
 from CollectTicker import collect_ticker
 
 WORK_DIR = os.path.dirname(__file__)
 tickers = collect_ticker()
 date = ['20070709', '20070710', '20070711', '20070712', '20070713', '20070716']
-src_dir = '/Users/chenzhao/Data/taq data/trades'
+src_dir = "C:\\Users\\Admin\\Downloads\\Algo HW2\\Algo HW2\\quotes\\quotes"
 
 
 def copy_file_to_folder(src_file_path, dest_folder_path):
@@ -32,7 +33,10 @@ def copy_file_to_folder(src_file_path, dest_folder_path):
 
 if __name__ == '__main__':
     for d in date:
-        dest_folder_path = os.path.join(WORK_DIR, 'data', 'trades', d)
+        dest_folder_path = os.path.join(WORK_DIR, 'data', 'quotes', d)
         for t in tickers:
-            src_file_path = os.path.join(src_dir, d, t+'_trades.binRT')
-            copy_file_to_folder(src_file_path, dest_folder_path)
+            src_file_path = os.path.join(src_dir, d, str(t) + '_quotes.binRQ')
+            try:
+                copy_file_to_folder(src_file_path, dest_folder_path)
+            except FileNotFoundError as e:
+                print(e)

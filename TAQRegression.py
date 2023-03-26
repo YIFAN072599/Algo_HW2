@@ -16,6 +16,65 @@ class TAQRegression(object):
         self.total_volume = pd.read_csv(os.path.join(REGRESSION_DIR,"total_volume.csv"),index_col = 0)
         self.terminal_price = pd.read_csv(os.path.join(REGRESSION_DIR,"terminal_price.csv"),index_col = 0)
 
+    def preprocessing(self, ticker_list=None, splitting_by_liquidity=False):
+        def clean_matrix(X, h, s, V, max_null_in_day=40, max_null_in_ticker=2):
+            # we want to drop the ticker column with too much null values
+            col_nulls_X = X.isnull().sum(axis=0)
+            col_nulls_h = h.isnull().sum(axis=0)
+            col_nulls_s = s.isnull().sum(axis=0)
+            col_nulls_V = V.isnull().sum(axis=0)
+            temp = pd.concat(
+                [col_nulls_X[col_nulls_X >= max_null_in_ticker], col_nulls_h[col_nulls_h >= max_null_in_ticker],
+                 col_nulls_s[col_nulls_s >= max_null_in_ticker], col_nulls_V[col_nulls_V >= max_null_in_ticker]])
+            drop_cols = list(temp.index.unique())
+            X.drop(columns=drop_cols, inplace=True)
+            h.drop(columns=drop_cols, inplace=True)
+            s.drop(columns=drop_cols, inplace=True)
+            V.drop(columns=drop_cols, inplace=True)
+
+            # we want to drop the day row with too much null values
+            row_nulls_X = X.isnull().sum(axis=1)
+            row_nulls_h = h.isnull().sum(axis=1)
+            row_nulls_s = s.isnull().sum(axis=1)
+            row_nulls_V = V.isnull().sum(axis=1)
+            temp = pd.concat([row_nulls_X[row_nulls_X >= max_null_in_day], row_nulls_h[row_nulls_h >= max_null_in_day],
+                              row_nulls_s[row_nulls_s >= max_null_in_day], row_nulls_V[row_nulls_V >= max_null_in_day]])
+            drop_rows = list(temp.index.unique())
+            X.drop(drop_rows, inplace=True)
+            h.drop(drop_rows, inplace=True)
+            s.drop(drop_rows, inplace=True)
+            V.drop(drop_rows, inplace=True)
+
+            # fill the rest Nans with daily average
+            def fillna(x):
+                z = x.fillna(x.mean())
+                return z
+
+            X = X.apply(lambda x: fillna(x), axis=1)
+            h = h.apply(lambda x: fillna(x), axis=1)
+            s = s.apply(lambda x: fillna(x), axis=1)
+            V = V.apply(lambda x: fillna(x), axis=1)
+
+            return X, h, s, V
+
+        def generate_sample(X, h, s, V):
+            X_ = X.values.ravel()
+            h_ = h.values.ravel()
+            s_ = s.values.ravel()
+            V_ = V.values.ravel()
+            return X_, h_, s_, V_
+
+        X_, h_, s_, V_ = clean_matrix(X, h, s, V)
+
+        if splitting_by_liquidity:
+            X_ = X_[X_.columns[X_.columns.isin(ticker_list)]]
+            h_ = h_[h_.columns[h_.columns.isin(ticker_list)]]
+            s_ = s_[s_.columns[s_.columns.isin(ticker_list)]]
+            V_ = V_[V_.columns[V_.columns.isin(ticker_list)]]
+
+        X_, h_, s_, V_ = generate_sample(X_, h_, s_, V_)
+
+        return X_, h_, s_, V_
     def NLR(self):
         X_ = self.vwap400 * self.market_imbalance
         h_ = self.temporary_impact
@@ -106,8 +165,7 @@ class TAQRegression(object):
 
         eta_list = []
         beta_list = []
-        X_.reset_index(inplace = True)
-        print(X_)
+        print(X_.index)
         for i in range(m):
             random_index = np.random.choice(np.arange(len(X_)), len(X_))
             random_X_ = X_[random_index]
@@ -150,15 +208,15 @@ if __name__ == "__main__":
 
     TAQRegression_obj.NLR()
     print()
-    eta_1, beta_1 = TAQRegression_obj.bootstrapping_residual( 40)
-    eta_2, beta_2 = TAQRegression_obj.bootstrapping_paired( 40)
+    eta_1, beta_1 = TAQRegression_obj.bootstrapping_residual(40)
+    eta_2, beta_2 = TAQRegression_obj.bootstrapping_paired(40)
     print("Residual bootstrapping method yields eta equals {} and beta equals {}".format(np.average(eta_1),
                                                                                          np.average(beta_1)))
-    print("Paired bootstrapping method yields eta equals {} and beta equals {}".format(np.average(eta_2),
-                                                                                       np.average(beta_2)))
+    # print("Paired bootstrapping method yields eta equals {} and beta equals {}".format(np.average(eta_2),
+    #                                                                                    np.average(beta_2)))
     print()
     TAQRegression_obj.get_t_statistic(eta_1, beta_1)
-    TAQRegression_obj.get_t_statistic(eta_2, beta_2)
+    # TAQRegression_obj.get_t_statistic(eta_2, beta_2)
 
     # print()
     # TAQRegression_obj.compare_params_by_liquidity()

@@ -35,21 +35,29 @@ def prepare_adjustment_data(path=SP_PATH):
     return factor_df, split_df
 
 
+from concurrent.futures import ThreadPoolExecutor
+
 def adjust_taq_data(df, factor_df, split_df):
     df['Date'] = pd.to_datetime(df['Date'])
     factor_df.dropna(inplace=True)
     merged_df = pd.merge_asof(df, factor_df, on='Date', by='Ticker', direction='backward')
 
-    for ticker in split_df.index.unique():
+    def adjust_ticker_data(ticker):
         idx = (merged_df['Ticker'] == ticker) & (merged_df['Date'] < split_df.loc[ticker, 'splitting_date'])
-        merged_df.loc[idx, ['AskPrice', 'BidPrice', 'Price']] *= merged_df.loc[
-            idx, 'Cumulative Factor to Adjust Prices']
-        merged_df.loc[idx, ['AskSize', 'BidSize', 'Volume']] *= merged_df.loc[
-            idx, 'Cumulative Factor to Adjust Shares/Vol']
+        merged_df.loc[idx, ['AskPrice']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Prices']
+        merged_df.loc[idx, ['BidPrice']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Prices']
+        merged_df.loc[idx, ['Price']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Prices']
+        merged_df.loc[idx, ['Volume']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Shares/Vol']
+        merged_df.loc[idx, ['AskSize']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Shares/Vol']
+        merged_df.loc[idx, ['BidSize']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Shares/Vol']
 
-    merged_df.drop(columns=['Cumulative Factor to Adjust Prices', 'Cumulative Factor to Adjust Shares/Vol'],
-                   inplace=True)
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        executor.map(adjust_ticker_data, split_df.index.unique())
+
+    merged_df.drop(columns=['Cumulative Factor to Adjust Prices', 'Cumulative Factor to Adjust Shares/Vol'], inplace=True)
+
     return merged_df
+
 
 
 factor_df, split_df = prepare_adjustment_data()
