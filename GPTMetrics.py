@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 class TAQMetrics:
     def __init__(self, df):
         self.df = df
