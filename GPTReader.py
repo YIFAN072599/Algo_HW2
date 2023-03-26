@@ -1,61 +1,73 @@
+import os
+from collections import defaultdict
 import pandas as pd
-import numpy as np
+from GPTMetrics import TAQMetrics
+import warnings
 
-class TAQMetrics:
-    def __init__(self, df):
-        self.df = df
+from GPTQuotesReader import TAQQuotesReader
+from GPTAdjust import prepare_adjustment_data, adjust_taq_data
+from GPTTradesReader import TAQTradesReader
 
-    def calculate_vwap(self):
-        """Calculate the Volume Weighted Average Price (VWAP)."""
-        self.df['tv'] = self.df['Price'] * self.df['Volume']
-        vwap = self.df['tv'].sum() / self.df['Volume'].sum()
-        return vwap
+warnings.filterwarnings('ignore')
+pd.set_option('display.max_columns', None)
 
-    def calculate_vwap_sub(self):
-        """Calculate the VWAP for a subset of data between 9:30 and 15:30."""
-        resampled_df = self.df.between_time("9:30", "15:30")
-        resampled_df['tv'] = resampled_df['Price'] * resampled_df['Volume']
-        vwap = resampled_df['tv'].sum() / resampled_df['Volume'].sum()
-        return vwap
+WORK_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.join(WORK_DIR, 'data')
+QUOTE_DIR = os.path.join(DATA_DIR, 'quotes')
+TRADE_DIR = os.path.join(DATA_DIR, 'trades')
+SP_PATH = os.path.join(WORK_DIR, 'data', 's&p500.xlsx')
+tickers = ['MS', 'AAPL', 'MSFT', 'AMZN', 'JPM']
+factor_df, split_df = prepare_adjustment_data()
 
-    def calculate_market_impact(self, vwap):
-        """Calculate the market impact (g) and the temporary impact (h)."""
-        first_price = self.df.iloc[0]['Price']
-        last_price = self.df.iloc[-1]['Price']
-        g = last_price - first_price
-        h = vwap - first_price - g
-        return g, h
 
-    def calculate_imbalance(self):
-        """Calculate the order imbalance between buy and sell volumes."""
-        resampled_df = self.df.between_time("9:30", "15:30")
-        resampled_df['Previous_price'] = resampled_df['Price'].shift(1)
-        resampled_df.dropna(inplace=True)
-        resampled_df['Trade_type'] = np.where(resampled_df['Price'] > resampled_df['Previous_price'], 'buy', 'sell')
+class TAQAnalysis:
+    def __init__(self, quote_dir, trade_dir, tickers, factor_df, split_df):
+        self.quote_dir = quote_dir
+        self.trade_dir = trade_dir
+        self.tickers = tickers
+        self.factor_df = factor_df
+        self.split_df = split_df
+        self.results = defaultdict(lambda: defaultdict(list))
 
-        buy_volume_sum = resampled_df.loc[resampled_df['Trade_type'] == 'buy', 'Volume'].sum()
-        sell_volume_sum = resampled_df.loc[resampled_df['Trade_type'] == 'sell', 'Volume'].sum()
+    def run(self):
+        for root, dir, files in os.walk(self.quote_dir):
+            for date in dir:
+                for subroot, subdir, subfiles in os.walk(os.path.join(root, date)):
+                    for f in subfiles:
 
-        imbalance = buy_volume_sum - sell_volume_sum
-        return imbalance
+                        ticker = f.split('_quotes')[0]
+                        if ticker not in self.tickers:
+                            continue
 
-    def calculate_mid_quote_returns_std(self):
-        """Calculate the standard deviation of mid-quote returns."""
-        resample_df = self.df.resample('2T')['midQuote'].agg(['first', 'last'])
-        resample_df['return'] = resample_df['last'] / resample_df['first'] - 1
-        return resample_df['return'].std() * np.sqrt(6.5 * 60 * 60 / 2)
+                        q_reader = TAQQuotesReader(os.path.join(subroot, f))
+                        q_df = q_reader.get_df(date, ticker)
+                        t_reader = TAQTradesReader(os.path.join(self.trade_dir, date, ticker + '_trades.binRT'))
+                        t_df = t_reader.get_df(date)
 
-    def calculate_total_daily_volume(self):
-        """Calculate the total daily trading volume."""
-        total_volume = self.df["Volume"].sum()
-        return total_volume
+                        df = pd.merge(q_df, t_df, on='Date')
 
-    def get_terminal_price(self):
-        """Calculate the mean terminal price based on the last 5 mid-quotes."""
-        terminal_price = self.df[-5:]['midQuote'].mean()
-        return terminal_price
+                        df = adjust_taq_data(df, self.factor_df, self.split_df)
 
-    def get_arrival_price(self):
-        """Calculate the mean arrival price based on the first 5 mid-quotes."""
-        arrival_price = self.df[:5]['midQuote'].mean()
-        return arrival_price
+                        df['midQuote'] = (df['BidPrice'] + df['AskPrice']) / 2
+                        df.set_index('Date', inplace=True)
+
+                        metric = TAQMetrics(df)
+                        self.results[ticker]['vwap400'].append(metric.calculate_vwap())
+                        self.results[ticker]['return_std'].append(metric.calculate_mid_quote_returns_std())
+                        self.results[ticker]['vwap330'].append(metric.calculate_vwap_sub())
+                        self.results[ticker]['terminal_price'].append(metric.get_terminal_price())
+                        self.results[ticker]['arrival_price'].append(metric.get_arrival_price())
+                        self.results[ticker]['market_imbalance'].append(metric.calculate_imbalance())
+                        self.results[ticker]['total_volume'].append(metric.calculate_total_daily_volume())
+
+    def save_results(self, file_prefix=''):
+        for key, result in self.results.items():
+            for metric, values in result.items():
+                filename = f"{file_prefix}{metric}_{key}.csv"
+                pd.DataFrame(values).to_csv(filename, index=False)
+
+
+if __name__ == '__main__':
+    analysis = TAQAnalysis(QUOTE_DIR, TRADE_DIR, tickers, factor_df, split_df)
+    analysis.run()
+    analysis.save_results()
