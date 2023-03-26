@@ -28,9 +28,9 @@ def copy_file_to_folder(src_file_path, dest_folder_path):
     print(f"File {src_file_path} has been copied to {dest_folder_path}")
 
 
-"""if __name__ == '__main__':
+if __name__ == '__main__':
     for d in date:
         dest_folder_path = os.path.join(WORK_DIR, 'data', 'trades', d)
         for t in tickers:
             src_file_path = os.path.join(src_dir, d, t+'_trades.binRT')
-            copy_file_to_folder(src_file_path, dest_folder_path)"""
+            copy_file_to_folder(src_file_path, dest_folder_path)
