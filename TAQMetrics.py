@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 
+
 class TAQMetrics:
     def __init__(self, df):
         self.df = df
@@ -29,18 +30,18 @@ class TAQMetrics:
         return g, h
 
     def calculate_imbalance(self):
-        self.resampled_df = self.df.between_time("9:30", "15:30")
-        self.resampled_df['Previous_price'] = self.resampled_df['Price'].shift(1)
-        self.resampled_df.dropna(inplace=True)
-        self.resampled_df['Trade_type'] = np.where(self.resampled_df['Price'] > self.resampled_df['Previous_price'],
-                                                   'buy', 'sell')
+        resampled_df = self.df.between_time("9:30", "15:30")
+        resampled_df['Previous_price'] = resampled_df['Price'].shift(1)
+        resampled_df.dropna(inplace=True)
+        resampled_df['Trade_type'] = np.where(resampled_df['Price'] > resampled_df['Previous_price'],
+                                              'buy', 'sell')
 
         # Initialize buy and sell volume sums
         buy_volume_sum = 0
         sell_volume_sum = 0
 
         # Iterate through the DataFrame and accumulate buy and sell volumes
-        for index, row in self.resampled_df.iterrows():
+        for index, row in resampled_df.iterrows():
             if row['Trade_type'] == 'buy':
                 buy_volume_sum += row['Volume']
             else:
@@ -58,7 +59,8 @@ class TAQMetrics:
         # Calculate the returns as the ratio of the last mid-quote price to the first mid-quote price, minus 1
         resample_df['return'] = resample_df['last'] / resample_df['first'] - 1
 
-        # Calculate the standard deviation of the returns and scale it by the square root of the number of 2-minute intervals in a trading day
+        # Calculate the standard deviation of the returns and scale it by the square root of the number of 2-minute
+        # intervals in a trading day
         return resample_df['return'].std() * np.sqrt(6.5 * 60 * 60 / 2)
 
     def calculate_total_daily_volume(self):
@@ -72,4 +74,3 @@ class TAQMetrics:
     def get_arrival_price(self):
         arrival_price = self.df[:5]['midQuote'].mean()
         return arrival_price
-
