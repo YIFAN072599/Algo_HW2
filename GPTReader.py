@@ -15,6 +15,7 @@ WORK_DIR = os.path.dirname(__file__)
 DATA_DIR = os.path.join(WORK_DIR, 'data')
 QUOTE_DIR = os.path.join(DATA_DIR, 'quotes')
 TRADE_DIR = os.path.join(DATA_DIR, 'trades')
+REGRESSION_DIR = os.path.join(WORK_DIR, 'regression_data')
 SP_PATH = os.path.join(WORK_DIR, 'data', 's&p500.xlsx')
 tickers = ['MS', 'AAPL', 'MSFT', 'AMZN', 'JPM']
 factor_df, split_df = prepare_adjustment_data()
@@ -72,6 +73,8 @@ class TAQAnalysis:
                         self.temporary_impact[ticker].append(metric.calculate_market_impact()[1])
 
     def save_results(self):
+        if not os.path.exists(REGRESSION_DIR):
+            os.makedirs(REGRESSION_DIR)
         vwap400_df = pd.DataFrame(self.vwap400, index=self.date_list)
         vwap330_df = pd.DataFrame(self.vwap330, index=self.date_list)
         terminal_price_df = pd.DataFrame(self.terminal_price, index=self.date_list)
@@ -80,14 +83,14 @@ class TAQAnalysis:
         total_volume_df = pd.DataFrame(self.total_volume, index=self.date_list)
         return_std_df = pd.DataFrame(self.return_std, index=self.date_list)
         temporary_impact_df = pd.DataFrame(self.temporary_impact, index=self.date_list)
-        vwap400_df.to_csv("regression_data/vwap400.csv")
-        vwap330_df.to_csv("regression_data/vwap330.csv")
-        terminal_price_df.to_csv("regression_data/terminal_price.csv")
-        arrival_price_df.to_csv("regression_data/arrival_price.csv")
-        market_imbalance_df.to_csv("regression_data/market_imbalance.csv")
-        total_volume_df.to_csv("regression_data/total_volume.csv")
-        return_std_df.to_csv("regression_data/return_std.csv")
-        temporary_impact_df.to_csv("regression_data/temporary_impact.csv")
+        vwap400_df.to_csv(os.path.join(REGRESSION_DIR, "vwap400.csv"))
+        vwap330_df.to_csv(os.path.join(REGRESSION_DIR, "vwap330.csv"))
+        terminal_price_df.to_csv(os.path.join(REGRESSION_DIR, "terminal_price.csv"))
+        arrival_price_df.to_csv(os.path.join(REGRESSION_DIR, "arrival_price.csv"))
+        market_imbalance_df.to_csv(os.path.join(REGRESSION_DIR, "market_imbalance.csv"))
+        total_volume_df.to_csv(os.path.join(REGRESSION_DIR, "total_volume.csv"))
+        return_std_df.to_csv(os.path.join(REGRESSION_DIR, "return_std.csv"))
+        temporary_impact_df.to_csv(os.path.join(REGRESSION_DIR, "temporary_impact.csv"))
 
 
 if __name__ == '__main__':
