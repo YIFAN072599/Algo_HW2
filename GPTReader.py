@@ -1,6 +1,8 @@
 import os
 from collections import defaultdict
 import pandas as pd
+
+from CollectTicker import collect_ticker
 from GPTMetrics import TAQMetrics
 import warnings
 
@@ -17,7 +19,7 @@ QUOTE_DIR = os.path.join(DATA_DIR, 'quotes')
 TRADE_DIR = os.path.join(DATA_DIR, 'trades')
 REGRESSION_DIR = os.path.join(WORK_DIR, 'regression_data')
 SP_PATH = os.path.join(WORK_DIR, 'data', 's&p500.xlsx')
-tickers = ['MS', 'AAPL', 'MSFT', 'AMZN', 'JPM']
+tickers = collect_ticker()
 factor_df, split_df = prepare_adjustment_data()
 
 

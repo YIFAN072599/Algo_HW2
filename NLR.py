@@ -47,7 +47,7 @@ class NonLinearRegression():
                 def wrapper(x, eta, beta):
                     return self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta)
 
-                p0 = [0.1, 0.1]  # Initial guess for the parameters
+                p0 = [0.5, 0.5]  # Initial guess for the parameters
                 params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=10000)
 
                 y_pred = wrapper(x_data, *params)

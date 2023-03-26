@@ -1,8 +1,10 @@
 import shutil
 import os
 
+from CollectTicker import collect_ticker
+
 WORK_DIR = os.path.dirname(__file__)
-tickers = ['MS', 'AAPL', 'MSFT', 'AMZN', 'JPM']
+tickers = collect_ticker()
 date = ['20070709', '20070710', '20070711', '20070712', '20070713', '20070716']
 src_dir = '/Users/chenzhao/Data/taq data/trades'
 
