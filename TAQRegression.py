@@ -16,68 +16,11 @@ class TAQRegression(object):
         self.total_volume = pd.read_csv(os.path.join(REGRESSION_DIR,"total_volume.csv"),index_col = 0)
         self.terminal_price = pd.read_csv(os.path.join(REGRESSION_DIR,"terminal_price.csv"),index_col = 0)
 
-    def preprocessing(self, ticker_list=None, splitting_by_liquidity=False):
-
-        X = self.vwap400 * self.market_imbalance
-        print(X)
-        h = self.temporary_impact
-        s = self.return_std
-        V = self.vwap400 * self.total_volume
-        print(V)
-        def clean_matrix(X, h, s, V, max_null_in_day=40, max_null_in_ticker=2):
-            # we want to drop the ticker column with too much null values
-            col_nulls_X = X.isnull().sum(axis=0)
-            col_nulls_h = h.isnull().sum(axis=0)
-            col_nulls_s = s.isnull().sum(axis=0)
-            col_nulls_V = V.isnull().sum(axis=0)
-            temp = pd.concat(
-                [col_nulls_X[col_nulls_X >= max_null_in_ticker], col_nulls_h[col_nulls_h >= max_null_in_ticker],
-                 col_nulls_s[col_nulls_s >= max_null_in_ticker], col_nulls_V[col_nulls_V >= max_null_in_ticker]])
-            drop_cols = list(temp.index.unique())
-            X.drop(columns=drop_cols, inplace=True)
-            h.drop(columns=drop_cols, inplace=True)
-            s.drop(columns=drop_cols, inplace=True)
-            V.drop(columns=drop_cols, inplace=True)
-
-            # we want to drop the day row with too much null values
-            row_nulls_X = X.isnull().sum(axis=1)
-            row_nulls_h = h.isnull().sum(axis=1)
-            row_nulls_s = s.isnull().sum(axis=1)
-            row_nulls_V = V.isnull().sum(axis=1)
-            temp = pd.concat([row_nulls_X[row_nulls_X >= max_null_in_day], row_nulls_h[row_nulls_h >= max_null_in_day],
-                              row_nulls_s[row_nulls_s >= max_null_in_day], row_nulls_V[row_nulls_V >= max_null_in_day]])
-            drop_rows = list(temp.index.unique())
-            X.drop(drop_rows, inplace=True)
-            h.drop(drop_rows, inplace=True)
-            s.drop(drop_rows, inplace=True)
-            V.drop(drop_rows, inplace=True)
-
-            # fill the rest Nans with daily average
-            def fillna(x):
-                z = x.fillna(x.mean())
-                return z
-
-            X = X.apply(lambda x: fillna(x), axis=1)
-            h = h.apply(lambda x: fillna(x), axis=1)
-            s = s.apply(lambda x: fillna(x), axis=1)
-            V = V.apply(lambda x: fillna(x), axis=1)
-
-            return X, h, s, V
-
-
-        X_, h_, s_, V_ = clean_matrix(X, h, s, V)
-
-        if splitting_by_liquidity:
-            X_ = X_[X_.columns[X_.columns.isin(ticker_list)]]
-            h_ = h_[h_.columns[h_.columns.isin(ticker_list)]]
-            s_ = s_[s_.columns[s_.columns.isin(ticker_list)]]
-            V_ = V_[V_.columns[V_.columns.isin(ticker_list)]]
-
-
-        return X_, h_, s_, V_
-
     def NLR(self):
-        X_, h_, s_, V_ = self.preprocessing()
+        X_ = self.vwap400 * self.market_imbalance
+        h_ = self.temporary_impact
+        s_ = self.return_std
+        V_ = self.vwap400 * self.total_volume
         self.optimization(X_, h_, s_, V_)
         return
 
@@ -88,27 +31,30 @@ class TAQRegression(object):
 
         InitialParameter = (0.5, 0.5)
 
-        model_df = pd.DataFrame({"imbalance_value": X_,
-                                 "temp_impact": h_,
-                                 "daily_std": s_,
-                                 "daily_volume": V_})
+        # model_df = pd.DataFrame({"imbalance_value": X_,
+        #                          "temp_impact": h_,
+        #                          "daily_std": s_,
+        #                          "daily_volume": V_})
 
         least_square_func = lambda p, x, y: y - p[0] * x["daily_std"] * np.sign(x["imbalance_value"]) * \
                                             (np.abs(x["imbalance_value"]) / ((6 / 6.5) * x["daily_volume"])) ** p[1]
 
         # curve fit the test data
-        #print(InitialParameter)
-        fittedParameters, pcov = curve_fit(curve_fit_func, (X_, s_, V_), h_, InitialParameter, bounds=(-1, 1.5))
-
-        # We also implement the scipy least_square optimization method to validate our result from curve_fit
-        # feel free to comment out lines of code and check the result
-        # parameters = least_squares(least_square_func, InitialParameter, args=(model_df, model_df["temp_impact"]))
-
-        print('optimized parameters through scipy curve_fit is {}'.format(fittedParameters))
-        # print("optimized parameters through scipy least_squares is {}".format(parameters.x))
-
+        para1_list = []
+        para2_list = []
+        print(self.vwap400.index)
+        for date in self.vwap400.index:
+            X_ = self.vwap400.loc[date,:] * self.market_imbalance.loc[date,:]
+            h_ = self.temporary_impact.loc[date,:]
+            s_ = self.return_std.loc[date,:]
+            V_ = self.vwap400.loc[date,:] * self.total_volume.loc[date,:]
+            fittedParameters, pcov = curve_fit(curve_fit_func, (X_, s_, V_), h_, InitialParameter, bounds=(-1, 1.5))
+            para1_list.append(fittedParameters[0])
+            para2_list.append(fittedParameters[1])
+        para1 = np.mean(para1_list)
+        para2 = np.mean(para2_list)
+        fittedParameters = [para1, para2]
         modelPredictions = curve_fit_func((X_, s_, V_), *fittedParameters)
-
         Error = modelPredictions - h_
 
         SE = np.square(Error)  # squared errors
@@ -125,7 +71,10 @@ class TAQRegression(object):
 
     def bootstrapping_residual(self, m):
 
-        X_, h_, s_, V_ = self.preprocessing()
+        X_ = self.vwap400 * self.market_imbalance
+        h_ = self.temporary_impact
+        s_ = self.return_std
+        V_ = self.vwap400 * self.total_volume
 
         def curve_fit_func(X, eta, beta):
             X_, s_, V_ = X
@@ -146,7 +95,10 @@ class TAQRegression(object):
 
     def bootstrapping_paired(self, m):
 
-        X_, h_, s_, V_ = self.preprocessing()
+        X_ = self.vwap400 * self.market_imbalance
+        h_ = self.temporary_impact
+        s_ = self.return_std
+        V_ = self.vwap400 * self.total_volume
 
         def curve_fit_func(X, eta, beta):
             X_, s_, V_ = X
@@ -154,6 +106,8 @@ class TAQRegression(object):
 
         eta_list = []
         beta_list = []
+        X_.reset_index(inplace = True)
+        print(X_)
         for i in range(m):
             random_index = np.random.choice(np.arange(len(X_)), len(X_))
             random_X_ = X_[random_index]
@@ -177,19 +131,19 @@ class TAQRegression(object):
 
         return t_statistic_eta, t_statistic_beta
 
-    def compare_params_by_liquidity(self, k=2):
-        less_active = list(self.total_volume.mean().sort_values()[:k].index)
-        more_active = list(self.total_volume.mean().sort_values()[-k:].index)
-
-        print("less active stocks have following eta and beta:")
-        X_low, h_low, s_low, V_low = self.preprocessing(ticker_list=less_active,
-                                                        splitting_by_liquidity=True)
-        self.optimization(X_low, h_low, s_low, V_low)
-
-        print("more active stocks have following eta and beta:")
-        X_high, h_high, s_high, V_high = self.preprocessing(ticker_list=more_active,
-                                                        splitting_by_liquidity=True)
-        self.optimization(X_high, h_high, s_high, V_high)
+    # # def compare_params_by_liquidity(self, k=2):
+    # #     less_active = list(self.total_volume.mean().sort_values()[:k].index)
+    # #     more_active = list(self.total_volume.mean().sort_values()[-k:].index)
+    # #
+    # #     print("less active stocks have following eta and beta:")
+    # #     X_low, h_low, s_low, V_low = self.preprocessing(ticker_list=less_active,
+    # #                                                     splitting_by_liquidity=True)
+    # #     self.optimization(X_low, h_low, s_low, V_low)
+    # #
+    # #     print("more active stocks have following eta and beta:")
+    # #     X_high, h_high, s_high, V_high = self.preprocessing(ticker_list=more_active,
+    # #                                                     splitting_by_liquidity=True)
+    #     self.optimization(X_high, h_high, s_high, V_high)
 
 if __name__ == "__main__":
     TAQRegression_obj = TAQRegression()
@@ -206,5 +160,5 @@ if __name__ == "__main__":
     TAQRegression_obj.get_t_statistic(eta_1, beta_1)
     TAQRegression_obj.get_t_statistic(eta_2, beta_2)
 
-    print()
-    TAQRegression_obj.compare_params_by_liquidity()
+    # print()
+    # TAQRegression_obj.compare_params_by_liquidity()
