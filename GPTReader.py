@@ -80,14 +80,14 @@ class TAQAnalysis:
         total_volume_df = pd.DataFrame(self.total_volume, index=self.date_list)
         return_std_df = pd.DataFrame(self.return_std, index=self.date_list)
         temporary_impact_df = pd.DataFrame(self.temporary_impact, index=self.date_list)
-        vwap400_df.to_csv("vwap400.csv")
-        vwap330_df.to_csv("vwap330.csv")
-        terminal_price_df.to_csv("terminal_price.csv")
-        arrival_price_df.to_csv("arrival_price.csv")
-        market_imbalance_df.to_csv("market_imbalance.csv")
-        total_volume_df.to_csv("total_volume.csv")
-        return_std_df.to_csv("return_std.csv")
-        temporary_impact_df.to_csv("temporary_impact.csv")
+        vwap400_df.to_csv("regression_data/vwap400.csv")
+        vwap330_df.to_csv("regression_data/vwap330.csv")
+        terminal_price_df.to_csv("regression_data/terminal_price.csv")
+        arrival_price_df.to_csv("regression_data/arrival_price.csv")
+        market_imbalance_df.to_csv("regression_data/market_imbalance.csv")
+        total_volume_df.to_csv("regression_data/total_volume.csv")
+        return_std_df.to_csv("regression_data/return_std.csv")
+        temporary_impact_df.to_csv("regression_data/temporary_impact.csv")
 
 
 if __name__ == '__main__':
