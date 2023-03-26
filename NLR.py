@@ -1,4 +1,5 @@
 import os
+from random import random
 
 import numpy as np
 import pandas as pd
@@ -27,10 +28,50 @@ class NonLinearRegression():
         self.date_list = X.index
         self.model = model_function
 
-    def NLR(self, boosting=None):
-        if boosting == 'residual':
-            return
-        if boosting == 'pair':
+    def residual_boosting(self, iterations=5):
+        boosting_results = []
+
+        for date in self.date_list:
+            x = self.X.loc[date, :].to_numpy()
+            v = self.V.loc[date, :].to_numpy()
+            s = self.S.loc[date, :].to_numpy()
+            h = self.H.loc[date, :].to_numpy()
+            x_data = np.vstack((x, s, v)).T
+            y_data = h
+
+            best_params = None
+            best_residuals = None
+            min_residual_sum = np.inf
+
+            for _ in range(iterations):
+                def wrapper(x, eta, beta):
+                    return self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta)
+
+                p0 = [0.1, 0.1]  # Initial guess for the parameters
+                params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=10000)
+
+                y_pred = wrapper(x_data, *params)
+                residuals = y_data - y_pred
+
+                residual_sum = np.sum(np.abs(residuals))
+                if residual_sum < min_residual_sum:
+                    min_residual_sum = residual_sum
+                    best_params = params
+                    best_residuals = residuals
+
+                # Choose a random residual and add it to y_data
+                random_residual = np.random.choice(residuals, size=residuals.shape)
+                y_data += random_residual
+
+            boosting_results.append((date, best_params, best_residuals))
+
+        return boosting_results
+
+    def NLR(self, bootstrape=None):
+        if bootstrape == 'residual':
+            return self.residual_boosting(iterations=5)
+
+        if bootstrape == 'pair':
             return
 
         for date in self.date_list:
@@ -44,14 +85,15 @@ class NonLinearRegression():
             y_data = h
 
             # Fit the nonlinear regression model
-            p0 = [1.0, 1.0]  # Initial guess for the parameters
-            params, _ = curve_fit(lambda x, eta, beta: self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta), x_data, y_data,
-                                  p0=p0)
+            def wrapper(x, eta, beta):
+                return self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta)
 
-            # Print the estimated parameters
-            print(f"Date: {date}, eta: {params[0]}, beta: {params[1]}")
+            p0 = [0.1, 0.1]  # Initial guess for the parameters
+            params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=10000)
+
+        return params[0], params[1]
 
 
 # Create and run the NonLinearRegression
 nonlinear_regression = NonLinearRegression(X, V, S, H, model_function)
-nonlinear_regression.NLR()
+print(nonlinear_regression.NLR(bootstrape='residual'))
