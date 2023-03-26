@@ -4,7 +4,9 @@ from random import random
 import numpy as np
 import pandas as pd
 from scipy.optimize import curve_fit
-from scipy.stats import shapiro
+
+from statsmodels.stats.diagnostic import het_breuschpagan
+
 
 WORK_DIR = os.path.dirname(__file__)
 REGRESSION_DIR = os.path.join(WORK_DIR, 'regression_data')
@@ -42,7 +44,7 @@ class NonLinearRegression():
         self.model = model_function
         self.nonl_ticker, self.l_ticker = self.split_astock()
 
-    def residual_boosting(self, iterations=5):
+    def residual_boosting(self, X, V, S, H, parameter_bounds, iterations=50):
         bootstrap_results = []
 
         for date in self.date_list:
@@ -63,8 +65,8 @@ class NonLinearRegression():
                 def wrapper(x, eta, beta):
                     return self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta)
 
-                p0 = [0.5, 0.5]  # Initial guess for the parameters
-                params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=10000)
+                p0 = [0.142, 0.6]  # Initial guess for the parameters
+                params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=50000, bounds=parameter_bounds)
 
                 y_pred = wrapper(x_data, *params)
                 residuals = y_data - y_pred
@@ -82,17 +84,21 @@ class NonLinearRegression():
             y_data = data[:, -1]
             y_pred = wrapper(x_data, *params_mean)
             residuals = y_data - y_pred
-            # Perform the Shapiro-Wilk test
-            stat, p_value = shapiro(residuals)
+            # test for heteroskedasticity
+            X_with_constant = np.column_stack((np.ones(len(x_data)), x_data))
+            bp_test = het_breuschpagan(residuals, X_with_constant)
+
+
+            # Results
+            bp_stat, bp_p_value, bp_f_stat, bp_f_p_value = bp_test
             eta_t_value, beta_t_value = calculate_t_values(eta_list, beta_list)
 
-            bootstrap_results.append((date, params_mean[0], eta_t_value, params_mean[1], beta_t_value, p_value))
+            bootstrap_results.append((date, params_mean[0], eta_t_value, params_mean[1], beta_t_value, bp_p_value))
 
-        return pd.DataFrame(bootstrap_results, columns=['Date', 'eta', 'eta_t', 'beta', 'beta_t', 'Residual_pvalue'])
+        return pd.DataFrame(bootstrap_results, columns=['Date', 'eta', 'eta_t', 'beta', 'beta_t', 'bp_pvalue'])
 
-    def paired_bootstrap(self, iterations=5):
+    def paired_bootstrap(self, X, V, S, H, parameter_bounds, iterations=50):
         bootstrap_results = []
-
         for date in self.date_list:
             x = X.loc[date, :].to_numpy()
             v = V.loc[date, :].to_numpy()
@@ -115,8 +121,8 @@ class NonLinearRegression():
                 def wrapper(x, eta, beta):
                     return self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta)
 
-                p0 = [0.05, 0.5]  # Initial guess for the parameters
-                params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=10000)
+                p0 = [0.146, 0.6]  # Initial guess for the parameters
+                params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=10000, bounds=parameter_bounds)
 
                 eta_list.append(params[0])
                 beta_list.append(params[1])
@@ -129,15 +135,26 @@ class NonLinearRegression():
             y_pred = wrapper(x_data, *params_mean)
             residuals = y_data - y_pred
 
-            # Perform the Shapiro-Wilk test
-            stat, p_value = shapiro(residuals)
+            # test for heteroskedasticity
+            X_with_constant = np.column_stack((np.ones(len(x_data)), x_data))
+            bp_test = het_breuschpagan(residuals, X_with_constant)
+
+            # Results
+            bp_stat, bp_p_value, bp_f_stat, bp_f_p_value = bp_test
             eta_t_value, beta_t_value = calculate_t_values(eta_list, beta_list)
 
-            bootstrap_results.append((date, params_mean[0], eta_t_value, params_mean[1], beta_t_value, p_value))
+            bootstrap_results.append((date, params_mean[0], eta_t_value, params_mean[1], beta_t_value, bp_p_value))
 
-        return pd.DataFrame(bootstrap_results, columns=['Date', 'eta', 'eta_t', 'beta', 'beta_t', 'Residual_pvalue'])
+        return pd.DataFrame(bootstrap_results, columns=['Date', 'eta', 'eta_t', 'beta', 'beta_t', 'bp_pvalue'])
 
     def NLR(self, bootstrape=None, liquid = None):
+        # Set the bounds for eta and beta
+        low_bounds = (-1, -1)
+        up_bounds = (1, 1)
+
+        # Combine the bounds into a single tuple
+        parameter_bounds = (low_bounds, up_bounds)
+
         if liquid == 'high':
             X = self.X[self.l_ticker]
             V = self.V[self.l_ticker]
@@ -154,10 +171,10 @@ class NonLinearRegression():
             H = self.H
             S = self.S
         if bootstrape == 'residual':
-            return self.residual_boosting(iterations=5)
+            return self.residual_boosting(X, V, S, H, parameter_bounds, iterations=10)
 
         if bootstrape == 'pair':
-            return self.paired_bootstrap(iterations=5)
+            return self.paired_bootstrap(X, V, S, H, parameter_bounds, iterations=10)
 
         for date in self.date_list:
             x = X.loc[date, :].to_numpy()
@@ -175,7 +192,7 @@ class NonLinearRegression():
             def wrapper(x, eta, beta):
                 return self.model(x[:, 0], eta, x[:, 1], x[:, 2], beta)
 
-            p0 = [0.1, 0.1]  # Initial guess for the parameters
+            p0 = [0.146, 0.6]  # Initial guess for the parameters
             params, _ = curve_fit(wrapper, x_data, y_data, p0=p0, maxfev=10000)
 
         return params[0], params[1]
