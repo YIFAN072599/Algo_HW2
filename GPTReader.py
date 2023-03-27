@@ -1,14 +1,16 @@
 import os
 from collections import defaultdict
+
+import numpy as np
 import pandas as pd
 
 from CollectTicker import collect_ticker
 from GPTMetrics import TAQMetrics
 import warnings
-
 from GPTQuotesReader import TAQQuotesReader
 from GPTAdjust import prepare_adjustment_data, adjust_taq_data
 from GPTTradesReader import TAQTradesReader
+from tqdm import tqdm
 
 warnings.filterwarnings('ignore')
 pd.set_option('display.max_columns', None)
@@ -43,19 +45,30 @@ class TAQAnalysis:
 
     def run(self):
         for root, dir, files in os.walk(self.quote_dir):
-            for date in dir:
+            for date in tqdm(dir):
                 self.date_list.append(date)
                 for subroot, subdir, subfiles in os.walk(os.path.join(root, date)):
-                    for f in subfiles:
+                    for f in tqdm(subfiles):
 
                         ticker = f.split('_quotes')[0]
                         if ticker not in self.tickers:
                             continue
 
-                        q_reader = TAQQuotesReader(os.path.join(subroot, f))
-                        q_df = q_reader.get_df(date, ticker)
-                        t_reader = TAQTradesReader(os.path.join(self.trade_dir, date, ticker + '_trades.binRT'))
-                        t_df = t_reader.get_df(date)
+                        try:
+                            q_reader = TAQQuotesReader(os.path.join(subroot, f))
+                            q_df = q_reader.get_df(date, ticker)
+                            t_reader = TAQTradesReader(os.path.join(self.trade_dir, date, ticker + '_trades.binRT'))
+                            t_df = t_reader.get_df(date)
+                        except FileNotFoundError as e:
+                            self.vwap400[ticker].append(np.nan)
+                            self.return_std[ticker].append(np.nan)
+                            self.vwap330[ticker].append(np.nan)
+                            self.terminal_price[ticker].append(np.nan)
+                            self.arrival_price[ticker].append(np.nan)
+                            self.market_imbalance[ticker].append(np.nan)
+                            self.total_volume[ticker].append(np.nan)
+                            self.temporary_impact[ticker].append(np.nan)
+                            continue
 
                         df = pd.merge(q_df, t_df, on='Date')
 
@@ -66,6 +79,9 @@ class TAQAnalysis:
 
                         metric = TAQMetrics(df)
                         self.vwap400[ticker].append(metric.calculate_vwap())
+                        print(self.vwap400)
+                        print(len(self.vwap400))
+                        print(self.date_list)
                         self.return_std[ticker].append(metric.calculate_mid_quote_returns_std())
                         self.vwap330[ticker].append(metric.calculate_vwap_sub())
                         self.terminal_price[ticker].append(metric.get_terminal_price())
@@ -73,6 +89,8 @@ class TAQAnalysis:
                         self.market_imbalance[ticker].append(metric.calculate_imbalance())
                         self.total_volume[ticker].append(metric.calculate_total_daily_volume())
                         self.temporary_impact[ticker].append(metric.calculate_market_impact()[1])
+
+                        del df, q_df, t_df, metric
 
     def save_results(self):
         if not os.path.exists(REGRESSION_DIR):

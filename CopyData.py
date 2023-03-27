@@ -2,12 +2,12 @@ import os
 import shutil
 
 
-from CollectTicker import collect_ticker
+from CollectTicker import collect_ticker, collect_date
 
 WORK_DIR = os.path.dirname(__file__)
 tickers = collect_ticker()
-date = ['20070709', '20070710', '20070711', '20070712', '20070713', '20070716']
-src_dir = "C:\\Users\\Admin\\Downloads\\Algo HW2\\Algo HW2\\quotes\\quotes"
+date = collect_date()
+src_dir = "C:\\Users\\Admin\\Downloads\\Algo HW2\\Algo HW2\\trades\\trades"
 
 
 def copy_file_to_folder(src_file_path, dest_folder_path):
@@ -33,9 +33,9 @@ def copy_file_to_folder(src_file_path, dest_folder_path):
 
 if __name__ == '__main__':
     for d in date:
-        dest_folder_path = os.path.join(WORK_DIR, 'data', 'quotes', d)
+        dest_folder_path = os.path.join(WORK_DIR, 'data', 'trades', d)
         for t in tickers:
-            src_file_path = os.path.join(src_dir, d, str(t) + '_quotes.binRQ')
+            src_file_path = os.path.join(src_dir, d, str(t) + '_trades.binRT')
             try:
                 copy_file_to_folder(src_file_path, dest_folder_path)
             except FileNotFoundError as e:
