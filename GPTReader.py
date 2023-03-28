@@ -45,7 +45,7 @@ class TAQAnalysis:
 
     def run(self):
         for root, dir, files in os.walk(self.quote_dir):
-            for date in tqdm(dir):
+            for date in tqdm(dir[30:45]):
                 self.date_list.append(date)
                 for subroot, subdir, subfiles in os.walk(os.path.join(root, date)):
                     for f in tqdm(subfiles):
@@ -79,9 +79,6 @@ class TAQAnalysis:
 
                         metric = TAQMetrics(df)
                         self.vwap400[ticker].append(metric.calculate_vwap())
-                        print(self.vwap400)
-                        print(len(self.vwap400))
-                        print(self.date_list)
                         self.return_std[ticker].append(metric.calculate_mid_quote_returns_std())
                         self.vwap330[ticker].append(metric.calculate_vwap_sub())
                         self.terminal_price[ticker].append(metric.get_terminal_price())
@@ -95,6 +92,7 @@ class TAQAnalysis:
     def save_results(self):
         if not os.path.exists(REGRESSION_DIR):
             os.makedirs(REGRESSION_DIR)
+        print(self.vwap400)
         vwap400_df = pd.DataFrame(self.vwap400, index=self.date_list)
         vwap330_df = pd.DataFrame(self.vwap330, index=self.date_list)
         terminal_price_df = pd.DataFrame(self.terminal_price, index=self.date_list)
