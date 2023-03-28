@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 from scipy import stats
 
 from statsmodels.stats.diagnostic import het_breuschpagan
-
+pd.set_option("display.max_columns", None)
 WORK_DIR = os.path.dirname(__file__)
 REGRESSION_DIR = os.path.join(WORK_DIR, 'regression_data')
 
@@ -236,27 +236,39 @@ class NonLinearRegression():
     def split_astock(self, k=250):
         less_active = list(self.V.mean().sort_values()[:k].index)
         more_active = list(self.V.mean().sort_values()[-k:].index)
-
         return less_active, more_active
 
 
 # Create and run the NonLinearRegression
 nonlinear_regression = NonLinearRegression(X, V, S, H, model_function)
 print('_____________________high_________________________________')
-df_high = nonlinear_regression.NLR(bootstrape='residual', liquid='high')
+df_high = nonlinear_regression.NLR(bootstrape='pair', liquid='high')
+
 eta_mean = df_high['eta'].mean()
 beta_mean = df_high['beta'].mean()
-print(f'eta: {eta_mean}, beta: {beta_mean}')
-print(df_high)
+t_eta_mean = df_high['eta_t'].mean()
+t_beta_mean = df_high['beta_t'].mean()
+heteroskedasticity_p_pvalue_mean = df_high['heteroskedasticity_p_pvalue'].mean()
+shapiro_wilk_p_value_mean = df_high['shapiro_wilk_p_value'].mean()
+print(f'eta: {eta_mean}, beta: {beta_mean}, eta_t: {t_eta_mean}, beta_t: {t_beta_mean}, shapiro_wilk_p_value: {shapiro_wilk_p_value_mean}, heter_p_value: {heteroskedasticity_p_pvalue_mean}')
+
 print('_____________________low_________________________________')
-df_low = nonlinear_regression.NLR(bootstrape='residual', liquid='low')
+df_low = nonlinear_regression.NLR(bootstrape='pair', liquid='low')
 eta_mean = df_low['eta'].mean()
 beta_mean = df_low['beta'].mean()
-print(f'eta: {eta_mean}, beta: {beta_mean}')
-print(df_low)
+t_eta_mean = df_low['eta_t'].mean()
+t_beta_mean = df_low['beta_t'].mean()
+heteroskedasticity_p_pvalue_mean = df_low['heteroskedasticity_p_pvalue'].mean()
+shapiro_wilk_p_value_mean = df_low['shapiro_wilk_p_value'].mean()
+print(f'eta: {eta_mean}, beta: {beta_mean}, eta_t: {t_eta_mean}, beta_t: {t_beta_mean}, shapiro_wilk_p_value: {shapiro_wilk_p_value_mean}, heter_p_value: {heteroskedasticity_p_pvalue_mean}')
+
 print('_____________________all_________________________________')
-df = nonlinear_regression.NLR(bootstrape='residual')
+df = nonlinear_regression.NLR(bootstrape='pair')
 eta_mean = df['eta'].mean()
 beta_mean = df['beta'].mean()
-print(f'eta: {eta_mean}, beta: {beta_mean}')
-print(df)
+t_eta_mean = df['eta_t'].mean()
+t_beta_mean = df['beta_t'].mean()
+heteroskedasticity_p_pvalue_mean = df['heteroskedasticity_p_pvalue'].mean()
+shapiro_wilk_p_value_mean = df['shapiro_wilk_p_value'].mean()
+print(f'eta: {eta_mean}, beta: {beta_mean}, eta_t: {t_eta_mean}, beta_t: {t_beta_mean}, shapiro_wilk_p_value: {shapiro_wilk_p_value_mean}, heter_p_value: {heteroskedasticity_p_pvalue_mean}')
+
