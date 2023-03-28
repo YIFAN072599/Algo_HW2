@@ -233,7 +233,7 @@ class NonLinearRegression():
         return pd.DataFrame(results,
                             columns=['Date', 'eta', 'beta', 'heteroskedasticity_p_pvalue', 'shapiro_wilk_p_value'])
 
-    def split_astock(self, k=200):
+    def split_astock(self, k=250):
         less_active = list(self.V.mean().sort_values()[:k].index)
         more_active = list(self.V.mean().sort_values()[-k:].index)
 
