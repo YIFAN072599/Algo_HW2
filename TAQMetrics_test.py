@@ -1,7 +1,7 @@
 import unittest
 import pandas as pd
 import numpy as np
-from GPTMetrics import TAQMetrics
+from TAQMetrics import TAQMetrics
 
 class TestTAQMetrics(unittest.TestCase):
 

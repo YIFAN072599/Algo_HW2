@@ -5,11 +5,11 @@ import numpy as np
 import pandas as pd
 
 from CollectTicker import collect_ticker
-from GPTMetrics import TAQMetrics
+from TAQMetrics import TAQMetrics
 import warnings
-from GPTQuotesReader import TAQQuotesReader
-from GPTAdjust import prepare_adjustment_data, adjust_taq_data
-from GPTTradesReader import TAQTradesReader
+from TAQQuotesReader import TAQQuotesReader
+from TAQAdjust import prepare_adjustment_data, adjust_taq_data
+from TAQTradesReader import TAQTradesReader
 from tqdm import tqdm
 
 warnings.filterwarnings('ignore')

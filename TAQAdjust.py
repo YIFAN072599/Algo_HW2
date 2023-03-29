@@ -1,80 +1,68 @@
 import os
-from datetime import datetime
 
 import pandas as pd
-from matplotlib import pyplot as plt
 
 WORK_DIR = os.path.dirname(__file__)
 SP_PATH = os.path.join(WORK_DIR, 'data', 's&p500.xlsx')
 
 
-def get_factor(path=SP_PATH):
-    df = pd.read_excel(path, usecols=["Names Date", "Trading Symbol", "Cumulative Factor to Adjust Prices",
-                                      "Cumulative Factor to Adjust Shares/Vol"])
-    df = df.groupby(["Names Date", "Trading Symbol", "Cumulative Factor to Adjust Prices",
-                     "Cumulative Factor to Adjust Shares/Vol"]).size().reset_index(name="Frequency")
-    df = df.rename(columns={"Names Date": "Date", "Trading Symbol": "Ticker"})
-    df["Date"] = pd.to_datetime(df["Date"], format='%Y%m%d')
-    return df
+def prepare_adjustment_data(path=SP_PATH):
+    factor_df = pd.read_excel(path, usecols=["Names Date", "Trading Symbol", "Cumulative Factor to Adjust Prices",
+                                             "Cumulative Factor to Adjust Shares/Vol"])
+    factor_df = factor_df.groupby(["Names Date", "Trading Symbol", "Cumulative Factor to Adjust Prices",
+                                   "Cumulative Factor to Adjust Shares/Vol"]).size().reset_index(name="Frequency")
+    factor_df["Names Date"] = pd.to_datetime(factor_df["Names Date"], format='%Y%m%d')
+    factor_df = factor_df.rename(columns={"Names Date": "Date", "Trading Symbol": "Ticker"})
 
+    tickers_with_multiple_factors = factor_df.groupby("Ticker").filter(lambda x: len(x) > 1)
+    split_dates = []
+    tickers = []
 
-def get_adjust_date(path=SP_PATH):
-    convert_date = lambda date_string: datetime.strptime(str(date_string), "%Y%m%d.%f").strftime("%Y-%m-%d")
+    for ticker, ticker_data in tickers_with_multiple_factors.groupby("Ticker"):
+        ticker_data = ticker_data.reset_index(drop=True)
+        for i in range(1, len(ticker_data)):
+            if ticker_data.iloc[i]["Cumulative Factor to Adjust Prices"] != ticker_data.iloc[i - 1][
+                "Cumulative Factor to Adjust Prices"] or ticker_data.iloc[i][
+                "Cumulative Factor to Adjust Shares/Vol"] != \
+                    ticker_data.iloc[i - 1]["Cumulative Factor to Adjust Shares/Vol"]:
+                split_dates.append(ticker_data.loc[i, "Date"])
+                tickers.append(ticker_data.loc[i, "Ticker"])
 
-    df_sp = pd.read_excel(path)
-    df = df_sp.groupby(["Names Date", "Trading Symbol", "Cumulative Factor to Adjust Prices",
-                        "Cumulative Factor to Adjust Shares/Vol"]).size().reset_index(name="Frequence")
-    df_2 = df_sp.groupby(["Trading Symbol", "Cumulative Factor to Adjust Prices",
-                          "Cumulative Factor to Adjust Shares/Vol"]).size().reset_index(name="Frequence")
-    df_2 = df_2.groupby(["Trading Symbol"]).count()
-    ticker_list = list(df_2.loc[df_2.Frequence > 1].index)
-    df_ticker = df.loc[df["Trading Symbol"].isin(ticker_list)]
-    df_ticker.reset_index(inplace=True, drop=True)
-    date = []
-    ticker = []
-    for j in ticker_list:
-        df_handle = df_ticker[df_ticker["Trading Symbol"] == j]
-        df_handle.reset_index(inplace=True, drop=True)
-        for i in range(1, len(df_handle)):
-            if df_handle.iloc[i]["Cumulative Factor to Adjust Prices"] != df_handle.iloc[i - 1][
-                "Cumulative Factor to Adjust Prices"] or df_handle.iloc[i]["Cumulative Factor to Adjust Shares/Vol"] != \
-                    df_handle.iloc[i - 1]["Cumulative Factor to Adjust Shares/Vol"]:
-                date.append(df_handle.loc[i, "Names Date"])
-                ticker.append(df_handle.loc[i, "Trading Symbol"])
-    split_df = {"ticker": ticker, "splitting_date": date}
-    split_df = pd.DataFrame(split_df)
-    # apply the conversion function to the date column
-    split_df['splitting_date'] = split_df['splitting_date'].apply(convert_date)
+    split_df = pd.DataFrame({"ticker": tickers, "splitting_date": split_dates})
+    split_df["splitting_date"] = split_df["splitting_date"].dt.strftime('%Y-%m-%d')
     split_df.set_index('ticker', inplace=True)
-    return split_df
+
+    return factor_df, split_df
+
+
+from concurrent.futures import ThreadPoolExecutor
+
+def adjust_taq_data(df, factor_df, split_df):
+    df['Date'] = pd.to_datetime(df['Date'])
+    factor_df.dropna(inplace=True)
+    merged_df = pd.merge_asof(df, factor_df, on='Date', by='Ticker', direction='backward')
+
+    def adjust_ticker_data(ticker):
+        idx = (merged_df['Ticker'] == ticker) & (merged_df['Date'] < split_df.loc[ticker, 'splitting_date'])
+        merged_df.loc[idx, ['AskPrice']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Prices']
+        merged_df.loc[idx, ['BidPrice']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Prices']
+        merged_df.loc[idx, ['Price']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Prices']
+        merged_df.loc[idx, ['Volume']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Shares/Vol']
+        merged_df.loc[idx, ['AskSize']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Shares/Vol']
+        merged_df.loc[idx, ['BidSize']] *= merged_df.loc[idx, 'Cumulative Factor to Adjust Shares/Vol']
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        executor.map(adjust_ticker_data, split_df.index.unique())
+
+    merged_df.drop(columns=['Cumulative Factor to Adjust Prices', 'Cumulative Factor to Adjust Shares/Vol'], inplace=True)
+
+    return merged_df
 
 
 
-class TAQAdjust:
-    def __init__(self, df, factor_df, split_df):
-        self._df = df
-        self._factor_df = factor_df
-        self._split_df = split_df
-        self._date = df['Date']
-        self._ticker = df['Ticker'].unique()[0]
+factor_df, split_df = prepare_adjustment_data()
 
-    def adjust(self):
-        if self._ticker in self._split_df.index:
-            factor_df = self._factor_df[self._factor_df['Ticker'] == self._ticker].set_index('Date')
-            date = self._split_df.loc[self._ticker, 'splitting_date']
-            prev_index = factor_df.index.get_loc(date) - 1
-            p_factor = factor_df.loc[date, 'Cumulative Factor to Adjust Prices'] / factor_df.iloc[prev_index, 1]
-            v_factor = factor_df.loc[date, 'Cumulative Factor to Adjust Shares/Vol'] / factor_df.iloc[prev_index, 2]
-
-            idx = self._date < date
-
-            self._df.loc[idx, 'AskPrice'] = self._df.loc[idx, 'AskPrice'] * p_factor
-            self._df.loc[idx, 'BidPrice'] = self._df.loc[idx, 'BidPrice'] * p_factor
-            self._df.loc[idx, 'AskSize'] = self._df.loc[idx, 'AskSize'] * v_factor
-            self._df.loc[idx, 'BidSize'] = self._df.loc[idx, 'BidSize'] * v_factor
-
-            self._df.loc[idx, 'Price'] = self._df.loc[idx, 'Price'] * p_factor
-            self._df.loc[idx, 'Volume'] = self._df.loc[idx, 'Volume'] * v_factor
-
-    def get_df(self):
-        return self._df
+# Use adjust_taq_data() with the prepared factor_df and split_df
+# adjusted_data = adjust_taq_data(raw_data, factor_df, split_df)
+if __name__ == '__main__':
+    print(factor_df)
